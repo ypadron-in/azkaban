@@ -88,11 +88,20 @@ public class Constants {
   // The flow exec id for a flow trigger instance unable to trigger a flow yet
   public static final int FAILED_EXEC_ID = -2;
 
+  // Submitted executions queued for more than 5 mins will be dispatched before than high priority
+  // executions.
+  public static final Duration DEFAULT_FLOW_MAX_WAITTIME_BEFORE_POLL = Duration.ofMinutes(5);
+
   public static class ConfigurationKeys {
 
     // Configures Azkaban to use new polling model for dispatching
     public static final String AZKABAN_POLL_MODEL = "azkaban.poll.model";
     public static final String AZKABAN_POLLING_INTERVAL_MS = "azkaban.polling.interval.ms";
+
+    // Sets the period of time after which executions will be considered as long-waiting.
+    // Long waiting executions will be dispatched before than high priority flows.
+    public static final String
+        AZKABAN_FLOW_MAX_WAITTIME_BEFORE_POLL_MIN = "azkaban.flow.max.waittime.before.poll.min";
 
     // Configures properties for Azkaban executor health check
     public static final String AZKABAN_EXECUTOR_HEALTHCHECK_INTERVAL_MIN = "azkaban.executor.healthcheck.interval.min";

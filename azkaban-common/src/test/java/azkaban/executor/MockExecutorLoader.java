@@ -452,8 +452,8 @@ public class MockExecutorLoader implements ExecutorLoader {
   }
 
   @Override
-  public int selectAndUpdateExecution(final int executorId, final boolean isActive)
-      throws ExecutorManagerException {
+  public int selectAndUpdateExecution(final int executorId, final boolean isActive,
+      final long executionMaxWaitTime) throws ExecutorManagerException {
     return 1;
   }
 

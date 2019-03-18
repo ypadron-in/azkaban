@@ -283,7 +283,7 @@ public interface ExecutorLoader {
 
   void unsetExecutorIdForExecution(final int executionId) throws ExecutorManagerException;
 
-  int selectAndUpdateExecution(final int executorId, boolean isActive)
+  int selectAndUpdateExecution(int executorId, boolean isActive, long executionMaxWaitTime)
       throws ExecutorManagerException;
 
 }

@@ -347,9 +347,10 @@ public class JdbcExecutorLoader implements ExecutorLoader {
   }
 
   @Override
-  public int selectAndUpdateExecution(final int executorId, final boolean isActive)
-      throws ExecutorManagerException {
-    return this.executionFlowDao.selectAndUpdateExecution(executorId, isActive);
+  public int selectAndUpdateExecution(final int executorId, final boolean isActive,
+      final long executionMaxWaitTime) throws ExecutorManagerException {
+    return this.executionFlowDao
+        .selectAndUpdateExecution(executorId, isActive, executionMaxWaitTime);
   }
 
   @Override

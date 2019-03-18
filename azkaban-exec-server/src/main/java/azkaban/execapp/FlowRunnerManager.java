@@ -16,6 +16,7 @@
 
 package azkaban.execapp;
 
+import static azkaban.Constants.DEFAULT_FLOW_MAX_WAITTIME_BEFORE_POLL;
 import static java.util.Objects.requireNonNull;
 
 import azkaban.Constants;
@@ -231,8 +232,12 @@ public class FlowRunnerManager implements EventListener,
 
     if (this.azkabanProps.getBoolean(ConfigurationKeys.AZKABAN_POLL_MODEL, false)) {
       this.logger.info("Starting polling service.");
-      this.pollingService = new PollingService(this.azkabanProps.getLong
-          (ConfigurationKeys.AZKABAN_POLLING_INTERVAL_MS, DEFAULT_POLLING_INTERVAL_MS));
+      final Duration flowMaxWaitTime = Duration.ofMinutes(this.azkabanProps
+          .getLong(ConfigurationKeys.AZKABAN_FLOW_MAX_WAITTIME_BEFORE_POLL_MIN,
+              DEFAULT_FLOW_MAX_WAITTIME_BEFORE_POLL.toMinutes()));
+      this.pollingService = new PollingService(this.azkabanProps
+          .getLong(ConfigurationKeys.AZKABAN_POLLING_INTERVAL_MS, DEFAULT_POLLING_INTERVAL_MS),
+          flowMaxWaitTime.toMillis());
       this.pollingService.start();
     }
   }
@@ -378,7 +383,6 @@ public class FlowRunnerManager implements EventListener,
       throw new ExecutorManagerException("Error loading flow with exec "
           + execId);
     }
-
     // Sets up the project files and execution directory.
     this.preparingFlowCount.incrementAndGet();
     // Record the time between submission, and when the flow preparation/execution starts.
@@ -387,7 +391,7 @@ public class FlowRunnerManager implements EventListener,
     this.commonMetrics.addQueueWait(System.currentTimeMillis() -
         flow.getExecutableFlow().getSubmitTime());
 
-    final Timer.Context flowPrepTimerContext = execMetrics.getFlowSetupTimerContext();
+    final Timer.Context flowPrepTimerContext = this.execMetrics.getFlowSetupTimerContext();
 
     try {
       if (this.active || isExecutorSpecified(flow)) {
@@ -1003,17 +1007,25 @@ public class FlowRunnerManager implements EventListener,
   @SuppressWarnings("FutureReturnValueIgnored")
   private class PollingService {
 
-    private final long pollingIntervalMs;
+    private final long pollingInterval;
+    private final long executionMaxWaitTime;
     private final ScheduledExecutorService scheduler;
     private int executorId = -1;
 
-    public PollingService(final long pollingIntervalMs) {
-      this.pollingIntervalMs = pollingIntervalMs;
+    /**
+     * constructor for the PollingService class
+     *
+     * @param pollingInterval the polling interval, in milliseconds
+     * @param executionMaxWaitTime the executions maximum wait time, in milliseconds
+     */
+    public PollingService(final long pollingInterval, final long executionMaxWaitTime) {
+      this.pollingInterval = pollingInterval;
+      this.executionMaxWaitTime = executionMaxWaitTime;
       this.scheduler = Executors.newSingleThreadScheduledExecutor();
     }
 
     public void start() {
-      this.scheduler.scheduleAtFixedRate(() -> pollExecution(), 0L, this.pollingIntervalMs,
+      this.scheduler.scheduleAtFixedRate(() -> pollExecution(), 0L, this.pollingInterval,
           TimeUnit.MILLISECONDS);
     }
 
@@ -1033,7 +1045,8 @@ public class FlowRunnerManager implements EventListener,
         try {
           // Todo jamiesjc: check executor capacity before polling from DB
           final int execId = FlowRunnerManager.this.executorLoader
-              .selectAndUpdateExecution(this.executorId, FlowRunnerManager.this.active);
+              .selectAndUpdateExecution(this.executorId, FlowRunnerManager.this.active,
+                  this.executionMaxWaitTime);
           if (execId != -1) {
             FlowRunnerManager.logger.info("Submitting flow " + execId);
             submitFlow(execId);

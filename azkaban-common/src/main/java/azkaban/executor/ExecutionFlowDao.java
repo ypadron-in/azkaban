@@ -308,8 +308,8 @@ public class ExecutionFlowDao {
     }
   }
 
-  public int selectAndUpdateExecution(final int executorId, final boolean isActive)
-      throws ExecutorManagerException {
+  public int selectAndUpdateExecution(final int executorId, final boolean isActive,
+      final long executionMaxWaitTime) throws ExecutorManagerException {
     final String UPDATE_EXECUTION = "UPDATE execution_flows SET executor_id = ? where exec_id = ?";
     final String selectExecutionForUpdate = isActive ?
         SelectFromExecutionFlows.SELECT_EXECUTION_FOR_UPDATE_ACTIVE :
@@ -317,7 +317,8 @@ public class ExecutionFlowDao {
 
     final SQLTransaction<Integer> selectAndUpdateExecution = transOperator -> {
       final List<Integer> execIds = transOperator.query(selectExecutionForUpdate,
-          new SelectFromExecutionFlows(), executorId);
+          new SelectFromExecutionFlows(), System.currentTimeMillis(), executionMaxWaitTime,
+          executorId);
 
       int execId = -1;
       if (!execIds.isEmpty()) {
@@ -340,9 +341,11 @@ public class ExecutionFlowDao {
       ResultSetHandler<List<Integer>> {
 
     private static final String SELECT_EXECUTION_FOR_UPDATE_FORMAT =
-        "SELECT exec_id from execution_flows WHERE status = " + Status.PREPARING.getNumVal()
+        "SELECT exec_id, GREATEST( ? - submit_time, ?) as waiting_time from execution_flows"
+            + " WHERE status = " + Status.PREPARING.getNumVal()
             + " and executor_id is NULL and flow_data is NOT NULL and %s"
-            + " ORDER BY flow_priority DESC, submit_time ASC, exec_id ASC LIMIT 1 FOR UPDATE";
+            + " ORDER BY waiting_time DESC, flow_priority DESC, submit_time ASC, exec_id ASC"
+            + " LIMIT 1 FOR UPDATE";
 
     public static final String SELECT_EXECUTION_FOR_UPDATE_ACTIVE =
         String.format(SELECT_EXECUTION_FOR_UPDATE_FORMAT,
