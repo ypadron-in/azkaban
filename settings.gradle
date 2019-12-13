@@ -14,7 +14,7 @@
  * the License.
  */
 
-rootProject.name = 'azkaban'
+rootProject.name = 'rest-api-poc'
 
 include 'az-core'
 include 'az-exec-util'
@@ -36,4 +36,8 @@ include 'az-flow-trigger-dependency-type:kafka-event-trigger'
 include 'tools'
 include 'az-crypto'
 include 'cached-http-filesystem'
+
+include 'cloudflow-core'
+include 'cloudflow-model'
+include 'cloudflow-persistence'
 
