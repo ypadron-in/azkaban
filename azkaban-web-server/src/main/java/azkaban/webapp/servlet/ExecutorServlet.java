@@ -723,7 +723,7 @@ public class ExecutorServlet extends LoginAbstractAzkabanServlet {
     ret.put("successEmails", options.getSuccessEmails());
     ret.put("failureEmails", options.getFailureEmails());
     ret.put("flowParam", options.getFlowParameters());
-    ret.put("jobParams", options.getJobParameters());
+    ret.put("nodeParams", options.getNodeParameters());
 
     final FailureAction action = options.getFailureAction();
     String failureAction = null;
@@ -902,7 +902,7 @@ public class ExecutorServlet extends LoginAbstractAzkabanServlet {
       nodeObj.put("nodes", nodeList);
       nodeObj.put("flowId", base.getFlowId());
     } else {
-      ClusterInfo cluster = node.getClusterInfo();
+      final ClusterInfo cluster = node.getClusterInfo();
       if (cluster != null && cluster.hadoopClusterURL != null) {
         nodeObj.put("cluster", cluster.hadoopClusterURL);
       }
