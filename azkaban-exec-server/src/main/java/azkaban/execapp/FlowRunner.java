@@ -366,9 +366,9 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
   }
 
   private boolean isContainerizedDispatchMethodEnabled() {
-    return DispatchMethod.isContainerizedMethodEnabled(azkabanProps
-            .getString(Constants.ConfigurationKeys.AZKABAN_EXECUTION_DISPATCH_METHOD,
-                    DispatchMethod.PUSH.name()));
+    return DispatchMethod.isContainerizedMethodEnabled(this.azkabanProps
+        .getString(Constants.ConfigurationKeys.AZKABAN_EXECUTION_DISPATCH_METHOD,
+            DispatchMethod.PUSH.name()));
   }
 
   private void reportFlowFinishedMetrics() {
@@ -420,7 +420,7 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
     final Map<String, String> flowParam =
         this.flow.getExecutionOptions().getFlowParameters();
     if (flowParam != null && !flowParam.isEmpty()) {
-      this.logger.info("FlowOverride Props: " + flowParam);
+      this.logger.info("ROOT Runtime Props: " + flowParam);
       commonFlowProps = new Props(commonFlowProps, flowParam);
     }
     this.flow.setInputProps(commonFlowProps);
@@ -429,7 +429,7 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
     final Map<String, Map<String, String>> runtimeProperties = this.flow.getExecutionOptions()
         .getRuntimeProperties();
     if (runtimeProperties != null && !runtimeProperties.isEmpty()) {
-      this.logger.info("Runtime Props: " + runtimeProperties);
+      this.logger.info("Other Runtime Props: " + runtimeProperties);
     }
 
     if (this.watcher != null) {
@@ -1601,7 +1601,7 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
       // or else use jetty.hostname
       metaData.put(EventReporterConstants.AZ_WEBSERVER,
           props.getString(AZKABAN_WEBSERVER_EXTERNAL_HOSTNAME,
-          props.getString("jetty.hostname", "localhost")));
+              props.getString("jetty.hostname", "localhost")));
       metaData.put(EventReporterConstants.PROJECT_NAME, flow.getProjectName());
       metaData.put(EventReporterConstants.SUBMIT_USER, flow.getSubmitUser());
       metaData.put(EventReporterConstants.EXECUTION_ID, String.valueOf(flow.getExecutionId()));
@@ -1665,9 +1665,9 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
     }
 
     @VisibleForTesting
-    protected String getVersionSetJsonString (final VersionSet versionSet){
+    protected String getVersionSetJsonString(final VersionSet versionSet) {
       final Map<String, String> imageToVersionStringMap = new HashMap<>();
-      for (final String imageType: versionSet.getImageToVersionMap().keySet()){
+      for (final String imageType : versionSet.getImageToVersionMap().keySet()) {
         imageToVersionStringMap.put(imageType,
             versionSet.getImageToVersionMap().get(imageType).getVersion());
       }
@@ -1722,11 +1722,12 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
       metaData.put(EventReporterConstants.START_TIME, String.valueOf(node.getStartTime()));
       metaData.put(EventReporterConstants.JOB_TYPE, String.valueOf(node.getType()));
       // Add version of the job type
-      if(executableFlow.getVersionSet() != null){ // Flow version set is set when flow is
+      if (executableFlow.getVersionSet() != null) { // Flow version set is set when flow is
         // executed in a container, which also indicates executor type is Kubernetes.
-        VersionInfo versionInfo =
-            executableFlow.getVersionSet().getImageToVersionMap().getOrDefault(node.getType(), null);
-        if(versionInfo != null){
+        final VersionInfo versionInfo =
+            executableFlow.getVersionSet().getImageToVersionMap()
+                .getOrDefault(node.getType(), null);
+        if (versionInfo != null) {
           metaData.put(EventReporterConstants.EXECUTOR_TYPE,
               String.valueOf(ExecutorType.KUBERNETES));
           // Add job type image version number
@@ -1743,7 +1744,7 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
       // or else use jetty.hostname
       metaData.put(EventReporterConstants.AZ_WEBSERVER,
           props.getString(AZKABAN_WEBSERVER_EXTERNAL_HOSTNAME,
-          props.getString("jetty.hostname", "localhost")));
+              props.getString("jetty.hostname", "localhost")));
       metaData.put(EventReporterConstants.JOB_PROXY_USER, jobRunner.getEffectiveUser());
       // attempt id
       metaData.put(EventReporterConstants.ATTEMPT_ID, String.valueOf(node.getAttempt()));
