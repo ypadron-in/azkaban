@@ -122,7 +122,7 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
   // Sync object for queuing
   private final Object mainSyncObj = new Object();
   private final JobTypeManager jobtypeManager;
-  private final Layout loggerLayout = DEFAULT_LAYOUT;
+  private final Layout loggerLayout = FlowRunner.DEFAULT_LAYOUT;
   private final ExecutorLoader executorLoader;
   private final ProjectLoader projectLoader;
   private final int execId;
@@ -544,7 +544,7 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
       synchronized (this.mainSyncObj) {
         if (this.flowPaused) {
           try {
-            this.mainSyncObj.wait(CHECK_WAIT_MS);
+            this.mainSyncObj.wait(FlowRunner.CHECK_WAIT_MS);
           } catch (final InterruptedException e) {
           }
 
@@ -554,7 +554,7 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
             retryAllFailures();
           } else if (!progressGraph()) {
             try {
-              this.mainSyncObj.wait(CHECK_WAIT_MS);
+              this.mainSyncObj.wait(FlowRunner.CHECK_WAIT_MS);
             } catch (final InterruptedException e) {
             }
           }
@@ -893,9 +893,7 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
     Props props = null;
 
     if (!FlowLoaderUtils.isAzkabanFlowVersion20(this.flow.getAzkabanFlowVersion())) {
-      // 1. Shared properties (i.e. *.properties) for the jobs only. This takes
-      // the
-      // least precedence
+      // 1. Shared properties (i.e. *.properties) for the jobs only. This takes the least precedence
       if (!(node instanceof ExecutableFlowBase)) {
         final String sharedProps = node.getPropsSource();
         if (sharedProps != null) {
@@ -904,16 +902,12 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
       }
     }
 
-    // The following is the hiearchical ordering of dependency resolution
+    // The following is the hierarchical ordering of dependency resolution
     // 2. Parent Flow Properties
     final ExecutableFlowBase parentFlow = node.getParentFlow();
     if (parentFlow != null) {
       // flow level runtime props have been already applied on parent input props
-      Props flowProps = Props.clone(parentFlow.getInputProps());
-      if (!isOverrideExistingEnabled()) {
-        // if there are more specific runtime props, those override the flow level props
-        flowProps = applyRuntimeProperties(node, runtimeProperties, flowProps);
-      }
+      final Props flowProps = Props.clone(parentFlow.getInputProps());
       flowProps.setEarliestAncestor(props);
       props = flowProps;
     }
@@ -932,38 +926,46 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
       props = jobSource;
     }
 
-    // 5. If configured, runtime properties override also existing .job props & output props
-    if (isOverrideExistingEnabled()) {
-      // 5.1. apply flow level runtime props
-      final Map<String, String> flowParam =
+    // 5. Runtime property overrides
+    if (this.azkabanProps.getBoolean(
+        ConfigurationKeys.EXECUTOR_PROPS_RESOLVE_OVERRIDE_EXISTING_ENABLED, false)) {
+      ExecutableNode currentNode = node;
+      Props overrideProps = null;
+      do {
+        if (runtimeProperties.containsKey(currentNode.getNestedId())) {
+          final Props currentOverrides = new Props(null,
+              runtimeProperties.get(currentNode.getNestedId()));
+          if (overrideProps == null) {
+            overrideProps = currentOverrides;
+          } else {
+            overrideProps.setEarliestAncestor(currentOverrides);
+          }
+        }
+        currentNode = currentNode.getParentFlow();
+      } while (currentNode != null);
+
+      // Overrides for the root flow node are not in runtimeProperties, get them from the right
+      // place
+      final Map<String, String> rootFlowRuntimeProperties =
           this.flow.getExecutionOptions().getFlowParameters();
-      if (flowParam != null && !flowParam.isEmpty()) {
-        props = new Props(props, flowParam);
+      if (rootFlowRuntimeProperties != null && !rootFlowRuntimeProperties.isEmpty()) {
+        final Props currentOverrides = new Props(null, rootFlowRuntimeProperties);
+        if (overrideProps == null) {
+          overrideProps = currentOverrides;
+        } else {
+          overrideProps.setEarliestAncestor(currentOverrides);
+        }
       }
-      // 5.2. apply node-specific runtime props
-      props = applyRuntimeProperties(node, runtimeProperties, props);
+
+      overrideProps.setEarliestAncestor(props);
+      props = overrideProps;
+    } else {
+      if (runtimeProperties.containsKey(node.getNestedId())) {
+        props = new Props(props, runtimeProperties.get(node.getNestedId()));
+      }
     }
 
     node.setInputProps(props);
-  }
-
-  private boolean isOverrideExistingEnabled() {
-    return this.azkabanProps.getBoolean(
-        ConfigurationKeys.EXECUTOR_PROPS_RESOLVE_OVERRIDE_EXISTING_ENABLED, false);
-  }
-
-  private Props applyRuntimeProperties(final ExecutableNode node,
-      final Map<String, Map<String, String>> runtimeProperties, final Props props) {
-    Props propsWithOverides = props;
-    if (node.getParentFlow() != null) {
-      // apply recursively top->down
-      propsWithOverides = applyRuntimeProperties(node.getParentFlow(), runtimeProperties, props);
-    }
-    if (runtimeProperties.containsKey(node.getNestedId())) {
-      // runtime props override any existing props
-      propsWithOverides = new Props(propsWithOverides, runtimeProperties.get(node.getNestedId()));
-    }
-    return propsWithOverides;
   }
 
   /**
@@ -1881,7 +1883,8 @@ public class FlowRunner extends EventHandler<Event> implements Runnable {
           .format("Propagating: %s to metadata for %s: %s", propsToPropagate, nodeType, nodeName));
     }
 
-    final List<String> propsToPropagateList = SPLIT_ON_COMMA.splitToList(propsToPropagate);
+    final List<String> propsToPropagateList = FlowRunner.SPLIT_ON_COMMA
+        .splitToList(propsToPropagate);
     for (final String propKey : propsToPropagateList) {
       if (!inputProps.containsKey(propKey)) {
         logger.warn(String.format("%s does not contains: %s property; "
